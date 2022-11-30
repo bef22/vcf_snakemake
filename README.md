@@ -9,6 +9,7 @@ The pipeline runs in 2 stages:
 
 ### Dependencies
 - snakemake v7.8.5
+
 the following must be in your path (for Durbin group you can set your PATH to include rds/rds-durbin-group-8b3VcZwY7rY/software/bin/)
 - bcftools v1.15.1
 - vcftools v0.1.17
