@@ -53,25 +53,25 @@ AUTHORS and UPDATES
 
 
 ### set global parameters
-namePrefix = "zebra_callainos_pearly.MZeb"
+namePrefix = "zebra_callainos_pearly_MZeb"
 
 reference = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Maylandia_zebra/M_zebra_UMD2a/bwa-mem2_index/GCF_000238955.4_M_zebra_UMD2a_genomic_LG.fa"
 
-mutation_rate = 0.001                        # chichlids = 0.001, 
+mutation_rate = 0.001                                # chichlids = 0.001
 
-mainChromFile = "chromList.txt"              # file with chromosome names per row
-scaffoldFile = "scaffoldList.txt"            # set this to "no" if scaffolds should not be included, otherwise provide the scaffold file
-cramListFile = "cramList.txt"                # file with cramPaths
-speciesTableFile = "speciesTable.txt"        # tab delimited file with 2 columns: 1st is the sampleID, 2nd is the species
+mainChromFile = "example/chromList.txt"              # file with chromosome names per row
+scaffoldFile = "example/scaffoldList.txt"            # set this to "no" if scaffolds should not be included, otherwise provide the scaffold file
+cramListFile = "example/cramList.txt"                # file with cramPaths
+speciesTableFile = "example/speciesTable.txt"        # tab delimited file with 2 columns: 1st is the sampleID, 2nd is the species
 
 # set this to "no" if the script hasn't been run before
-missingQCpass = "yes"                        # update this to "yes" after reviewing the QC files, update the filter parameters and start snakemake again
+missingQCpass = "no"                        # update this to "yes" after reviewing the QC files, update the filter parameters and start snakemake again
 
 
 ### filter parameters for PASS sites - update these after first pass of script
 # the result file name string will be named as _DP<percentDP>_Q<minQ>_GQ<minGQ>_MM<maxMissing>
 # to switch off a parameter set it to 0
-medianDP = 2040                              # update this with the median depth value from file bcf_qc/depth/summary_site_depth.txt, '<INT>'
+medianDP = 0                                 # update this with the median depth value from file bcf_qc/depth/summary_site_depth.txt, '<INT>'
 percentDP = 25                               # medianDP +/- percentDP %, '<INT>'
 minQ = 20                                    # minimum QUAL vlaue, '<INT>'
 minGQ = 30                                   # minimum mead GQ value, '<INT>'
@@ -79,9 +79,9 @@ maxMissing = 50                              # % max missing per site, '<INT>'
 
 
 ### paths to dependant scripts
-R_QC_script = "/rds/project/rd109/rds-rd109-durbin-group/projects/cichlid/Bettina/data/Mzebra_UMD2a_vcf/snakemake_pipeline_scripts/QC.R"
-R_depth_script = "/rds/project/rd109/rds-rd109-durbin-group/projects/cichlid/Bettina/data/Mzebra_UMD2a_vcf/snakemake_pipeline_scripts/depth.R"
-perl_filter_script = "/rds/project/rd109/rds-rd109-durbin-group/projects/cichlid/Bettina/data/Mzebra_UMD2a_vcf/snakemake_pipeline_scripts/setPassFilter.pl"
+R_QC_script = "scripts/QC.R"
+R_depth_script = "scripts/depth.R"
+perl_filter_script = "scripts/setPassFilter.pl"
 
 
 ###############################################################################
@@ -300,7 +300,7 @@ rule extract_biallelic:
     input:
         "bcf_normf/{namePrefix}{filterString}.normf.{chrs}.bcf.gz"
     output:
-        "bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz"
+        temp("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz")
     shell:
         "bcftools view -m2 -M2 -v snps -O b -o {output} {input}"
 
