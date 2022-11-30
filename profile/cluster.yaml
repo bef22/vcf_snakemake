@@ -1,0 +1,46 @@
+__default__:
+  jobname: "{rule}.{wildcards.chrs}"
+  nodes: 1
+  ntaskspernode: 1
+  cpuspertask: 1
+  time: "35:00:00"
+  account: "DURBIN-SL2-CPU"
+  partition: "skylake-himem"
+  mailtype: "FAIL"
+  output: ".slurm/%x_%A.out"
+
+
+mpileup_call_filltags:
+  cpuspertask: 1
+
+norm_merge:
+  cpuspertask: 1
+
+missing_individual:
+  cpuspertask: 1
+
+report_missing_individuals:
+  jobname: "{rule}"
+  cpuspertask: 1
+
+site_depth:
+  jobname: "{rule}.{wildcards.main_chrs}"
+  cpuspertask: 1
+
+gzip_site_depth:
+  jobname: "{rule}.{wildcards.main_chrs}"
+  cpuspertask: 1
+
+median_DP:
+  jobname: "{rule}"
+  cpuspertask: 1
+
+set_vcf_filter:
+  cpuspertask: 1
+
+extract_biallelic:
+  cpuspertask: 1
+
+merge_biallelic_bcfs:
+  jobname: "{rule}"
+  cpuspertask: 1
