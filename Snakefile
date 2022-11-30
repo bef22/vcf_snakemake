@@ -44,7 +44,7 @@ NOTES
 
 
 AUTHORS and UPDATES
-20221129 Written by Bettina Fischer (bef22)
+20221129 Written by Bettina Fischer (bef22) - version 1.0
 
 
 """
