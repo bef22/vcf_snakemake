@@ -157,7 +157,7 @@ myoutput.append("bcf_qc/depth/summary_site_depth.txt")
 
 # steps after reviewing the QC and depth files
 if missingQCpass == "yes":
-    myoutput.append(expand("bcf_normf/{namePrefix}{filterString}.normf.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix, filterString=filterString))
+    myoutput.append(expand("bcf_normf/{namePrefix}{filterString}.normf.{chrs}.bcf.gz.csi", chrs=chrs, namePrefix=namePrefix, filterString=filterString))
     myoutput.append(expand("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix, filterString=filterString))
     myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz", namePrefix=namePrefix, filterString=filterString))
     myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz.csi", namePrefix=namePrefix, filterString=filterString))
@@ -290,9 +290,11 @@ rule set_vcf_filter:
     input:
         "bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz"
     output:
-        "bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz"
-    shell:
-        "bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output}"
+        bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz",
+	csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz.csi"
+    run:
+	shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
+	shell("tabix -p bcf {output.csi}")
 
 
 ### biallelic per chromosome - temporary file
