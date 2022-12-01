@@ -138,6 +138,9 @@ while (<$vcffh>) {
 	my @tabs = split(/\t/, $_);
 	$nSamples = scalar(@tabs) - 9;
 	
+	### reset filter
+	$tabs[6] = ".";
+	
 	### check depth
 	if($medianDP && $percentDP) {
 		my $dp = $1 if ($tabs[7] =~ /DP=(\d+)/);
