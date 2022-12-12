@@ -62,10 +62,9 @@ To run use:
 snakemake --profile path2profile/ --latency 20 --jobs n
 ```
 
-#### To overwrite filter parameters use
-and add maf 10% and PASS filtering you can use
-medianDPValue = 2040 (as example)
+#### To overwrite filter parameters
+and add maf 10% and PASS filtering (as example using medianDPValue = 2040, increase the percentDP to +/- 50%, mores stringent on the maxMissing 10%)
 
 ```
-bcftools view bcf_file | scripts/setPassFilter.pl --medianDP medianDPValue --percentDP 50 --minQ 20 --minGQ 30 --maxMissing 10 /dev/stdin | bcftools view -f PASS -q 0.1:minor -O b -o new_bcf_file
+bcftools view bcf_file | scripts/setPassFilter.pl --medianDP 2040 --percentDP 50 --minQ 20 --minGQ 30 --maxMissing 10 /dev/stdin | bcftools view -f PASS -q 0.1:minor -O b -o new_bcf_file
 ```
