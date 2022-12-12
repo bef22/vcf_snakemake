@@ -45,7 +45,7 @@ NOTES
 
 AUTHORS and UPDATES
 20221129 Written by Bettina Fischer (bef22) - version 1.0
-
+20221212 updated by Bettina Fischer - version 1.1
 
 """
 
@@ -150,7 +150,7 @@ myoutput.append(expand("bcf_call/{namePrefix}.call.{chrs}.bcf.gz", chrs=chrs, na
 myoutput.append(expand("bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix))
 myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss", chrs=chrs, namePrefix=namePrefix))
 myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}_missing_individual_report.txt", namePrefix=namePrefix)) 
-myoutput.append(expand("bcf_qc/depth/{namePrefix}.{main_chrs}.ldepth.gz", main_chrs=main_chrs, namePrefix=namePrefix))
+myoutput.append(expand("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz", main_chrs=main_chrs, namePrefix=namePrefix))
 myoutput.append("bcf_qc/depth/site_depth_histogram.png")
 myoutput.append("bcf_qc/depth/summary_site_depth.txt")
 
@@ -245,23 +245,23 @@ rule report_missing_individuals:
 
 
 ### get site depths across main chromosomes
-# this extracts the depth in the vcf files at sites (using sites instead of all positions drastically decreases disc space and gives near identical numbers)
+# this extracts the depth in the vcf files at all positions usig the AD field and creates a frequency table
 rule site_depth:
     input:
         "bcf_norm/{namePrefix}.norm.{main_chrs}.bcf.gz"
     output:
-        temp("bcf_qc/depth/{namePrefix}.{main_chrs}.ldepth")
+        temp("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt")
     shell:
-        "bcftools view --min-ac 1 {input} | vcftools --vcf - --site-depth --stdout > {output}"
-
+        "bcftools view {input} | vcftools --vcf - --site-depth --stdout | grep -v "SUM_DEPTH" | cut -f 3 | sort -n | uniq -c > {output}"
+	#"bcftools view --min-ac 1 {input} | vcftools --vcf - --site-depth --stdout > {output}"
 
 
 ### gzip depth files
 rule gzip_site_depth:
     input:
-        "bcf_qc/depth/{namePrefix}.{main_chrs}.ldepth"
+        "bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt"
     output:
-        "bcf_qc/depth/{namePrefix}.{main_chrs}.ldepth.gz"
+        "bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz"
     shell:
         "gzip {input}"
 
