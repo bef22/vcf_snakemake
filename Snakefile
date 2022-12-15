@@ -252,7 +252,7 @@ rule site_depth:
     output:
         temp("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt")
     shell:
-        "bcftools view {input} | vcftools --vcf - --site-depth --stdout | grep -v "SUM_DEPTH" | cut -f 3 | sort -n | uniq -c > {output}"
+        "bcftools view {input} | vcftools --vcf - --site-depth --stdout | grep -v 'SUM_DEPTH' | cut -f 3 | sort -n | uniq -c > {output}"
 	#"bcftools view --min-ac 1 {input} | vcftools --vcf - --site-depth --stdout > {output}"
 
 
@@ -293,8 +293,8 @@ rule set_vcf_filter:
         bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz",
 	csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz.csi"
     run:
-	shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
-	shell("tabix -p bcf {output.csi}")
+        shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
+        shell("tabix -p bcf {output.csi}")
 
 
 ### biallelic per chromosome - temporary file
