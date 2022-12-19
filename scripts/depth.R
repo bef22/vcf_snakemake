@@ -14,7 +14,7 @@ chrList <- read.delim(chrListFile, sep="\t", header=F, stringsAsFactors = F)
 chrs <- chrList[,1]
 
 for(i in 1:length(chrs)) {
-  mFile <- paste0(filePath, namePrefix, ".", chrs[i], "_freq.txt")
+  mFile <- paste0(filePath, namePrefix, ".", chrs[i], "_freq.txt.gz")
   cat("Reading", mFile, "\n")
   
   
