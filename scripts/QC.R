@@ -14,9 +14,10 @@ chrListFile <- args[3]
 scaffoldListFile <- args[4]
 type <- args[5]
 
+
 ### missing individual
 if(type == "individual") {
-
+  
   outlierFile <- paste0(filePath, namePrefix, "_missing_individual_outlier_report.txt")
   summaryFile <- paste0(filePath, namePrefix, "_missing_individual_summary_report.txt")
   plotMainFile <- paste0(filePath, namePrefix, "_mainChrom_missing_individual.png")
@@ -30,6 +31,7 @@ if(type == "individual") {
   
   mList <- list()
   x.outliers <- c()
+  miss.df <- c()
   
   # rad each file
   for(i in 1:length(mFiles)) {
@@ -47,15 +49,21 @@ if(type == "individual") {
     
     if(i == 1) {
       mm <- x
+      miss.df <- x[,c(1,5)]
+      
     }
     if(i > 1) {
       mm <- rbind(mm, x)
+      miss.df$tmp <- x[,5]
     }
+    colnames(miss.df)[i+1] <- chrList[i,1]
     mList[[i]] <- x$F_MISS
     names(mList)[i] <- chrList[i,1]
   }
   
-  png(plotMainFile, width=1000, height=400)
+  
+  png(plotMainFile, width=1000, height=500)
+  par(mar=c(10,4,4,1))
   stripchart(mList, pch=16, cex=0.5, method = "jitter", jitter = 0.3, vertical = T, ylim=c(0,1), las=2,
              ylab="F_MISS", main="missing individual")
   invisible(dev.off())
@@ -90,17 +98,22 @@ if(type == "individual") {
       
       if(i == 1) {
         mm <- x
+        miss.df$tmp <- x[,5]
       }
       if(i > 1) {
         mm <- rbind(mm, x)
+        miss.df$tmp <- x[,5]
       }
+      colnames(miss.df)[i+1] <- chrList[i,1]
       mList[[i]] <- x$F_MISS
       names(mList)[i] <- scaffoldList[i,1]
     }
     
-    # plot max 100 per row
+    
+    # plot max 50 per row
     max.n <- 100
     max.plotrows <- ceiling(length(mList)/max.n)
+    
     plot.width <- 1200
     plot.height <- 300 * max.plotrows
     
@@ -116,9 +129,12 @@ if(type == "individual") {
     x.outliers <- rbind(x.outliers, s.outliers)
     
   }
-
+  
+  
   write.table(x.outliers, file=outlierFile, sep="\t", row.names=F, quote=F)
-
+  write.table(miss.df, file=summaryFile, sep="\t", row.names=F, quote=F)
+  
+  
   # plot the sum of missing per individual across all chr/scaffolds
   mt <- miss.df
   rownames(mt) <- miss.df[,1]
@@ -129,21 +145,18 @@ if(type == "individual") {
   # plot max 50 per row
   max.n <- 50
   max.plotrows <- ceiling(length(cs)/max.n)
+  
   plot.width <- 1200
   plot.height <- 300 * max.plotrows
   
   png(barplotFile, width=plot.width, height=plot.height)
   par(mfrow=c(max.plotrows, 1), mar=c(10,4,2,1))
-  if(length(cs) > max.n) {
-    for(j in 1:max.plotrows) {
-      csj <- cs[((max.n*j)-max.n+1):(max.n*j)]
-      barplot(csj, las=2, col="grey", ylab="sum missing")
-    }
-  }
-  if(length(cs) <= max.n) {
-    barplot(cs, las=2, col="grey", ylab="sum missing")
+  for(j in 1:max.plotrows) {
+    csj <- cs[((max.n*j)-max.n+1):(max.n*j)]
+    barplot(csj, las=2, col="grey", ylab="sum missing %")
   }
   invisible(dev.off())
-
+  
+  
+  
 }
-
