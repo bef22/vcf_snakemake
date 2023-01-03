@@ -270,7 +270,7 @@ rule gzip_site_depth:
 # get the genome wise median and plot a histogram of the site depths
 rule median_DP:
     input:
-        expand("bcf_norm/{namePrefix}.norm.{main_chrs}.bcf.gz", main_chrs=main_chrs, namePrefix=namePrefix)
+        expand("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz", main_chrs=main_chrs, namePrefix=namePrefix)
     params:
         filePath = "bcf_qc/depth/"
     output:
