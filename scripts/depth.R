@@ -77,10 +77,14 @@ Mode <- getMode(depths)
 summary.depth <- as.matrix(summary(depths))
 summary.depth <- rbind(summary.depth, Mode)
 
+max.depth <- max(depths)
+breaks <- as.integer(max.depth/50)
+
 # plot
 plotName <- paste0(filePath, "site_depth_histogram.png")
 png(plotName)
-hist(depths, breaks=5000, xlim=c(0, 2*summary.depth[5,1]), main="Sum depth at sites", xlab="depth")
+#hist(depths, breaks=5000, xlim=c(0, 2*summary.depth[5,1]), main="Sum depth at sites", xlab="depth")
+hist(depths, breaks=breaks, xlim=c(0, 2*summary.depth[5,1]), main="Depth", xlab="depth")
 abline(v=median.depth, lwd=2, col="red")
 abline(v=mean.depth, lwd=2, col="blue")
 abline(v=median.depth-(median.depth*0.25), lwd=1, lty=2)
