@@ -149,7 +149,7 @@ myoutput = list()
 myoutput.append(expand("bcf_call/{namePrefix}.call.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix))
 myoutput.append(expand("bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix))
 myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss", chrs=chrs, namePrefix=namePrefix))
-myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}_missing_individual_report.txt", namePrefix=namePrefix)) 
+myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}_missing_individual_summary_report.txt", namePrefix=namePrefix)) 
 myoutput.append(expand("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz", main_chrs=main_chrs, namePrefix=namePrefix))
 myoutput.append("bcf_qc/depth/site_depth_histogram.png")
 myoutput.append("bcf_qc/depth/summary_site_depth.txt")
@@ -234,11 +234,11 @@ rule missing_individual:
 # creates a stripchart for chromosomes and scaffolds and a report file which contains individuals which are above 1.5 times the interquartile range above the upper quartile (e.g. whiskers in boxplot)
 rule report_missing_individuals:
     input:
-        expand("bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix)
+        expand("bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss", chrs=chrs, namePrefix=namePrefix)
     params:
         filePath = "bcf_qc/missing_individual/"
     output:
-        "bcf_qc/missing_individual/{namePrefix}_missing_individual_report.txt"
+        "bcf_qc/missing_individual/{namePrefix}_missing_individual_summary_report.txt"
     shell:
         "Rscript {R_QC_script} {params.filePath} {namePrefix} {mainChromFile} {scaffoldFile} individual"
 
