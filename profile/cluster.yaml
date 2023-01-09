@@ -34,7 +34,7 @@ gzip_site_depth:
 median_DP:
   jobname: "{rule}"
   mem: "48120mb"
-  cpuspertask: 1
+  cpuspertask: 4
 
 set_vcf_filter:
   cpuspertask: 1
