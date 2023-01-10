@@ -291,10 +291,10 @@ rule set_vcf_filter:
         "bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz"
     output:
         bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz",
-	csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz.csi"
+        csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz.csi"
     run:
         shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
-        shell("tabix -p bcf {output.csi}")
+        shell("tabix -p bcf {output.bcf}")
 
 
 ### biallelic per chromosome - temporary file
