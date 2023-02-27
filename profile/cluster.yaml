@@ -11,12 +11,30 @@ __default__:
 
 
 mpileup_call_filltags:
+  jobname: "{rule}.{wildcards.regions}"
+  cpuspertask: 1
+
+raw_missing_individual:
+  jobname: "{rule}.{wildcards.regions}"
+  cpuspertask: 1
+
+raw_report_missing_individuals:
+  jobname: "{rule}"
+  cpuspertask: 1
+
+concat:
+  jobname: "{rule}.{wildcards.chrsPlus}"
   cpuspertask: 1
 
 norm_merge:
+  jobname: "{rule}.{wildcards.chrsPlus}"
+  cpuspertask: 1
+
+subset:
   cpuspertask: 1
 
 missing_individual:
+  jobname: "{rule}.{wildcards.chrsPlus}"
   cpuspertask: 1
 
 report_missing_individuals:
@@ -37,9 +55,11 @@ median_DP:
   cpuspertask: 4
 
 set_vcf_filter:
+  jobname: "{rule}.{wildcards.chrsPlus}"
   cpuspertask: 1
 
 extract_biallelic:
+  jobname: "{rule}.{wildcards.chrsPlus}"
   cpuspertask: 1
 
 merge_biallelic_bcfs:

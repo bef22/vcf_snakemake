@@ -1,10 +1,12 @@
 # vcf_snakemake
 
-Pipeline for creating vcf files from cram files on the Cambridge HPC cluster using Snakemake
+Pipeline for creating vcf files from cram files on the Cambridge HPC cluster using Snakemake. The pipeline can also be found on rds in /rds/rds-durbin-group-8b3VcZwY7rY/projects/cichlid/vcfs/vcf_call_snakemake_resource
 
-The pipeline runs in 2 stages:
-1. The first stage performs the mpileup+call, norm, missing individual QC and calculating the genome wide median depth
-2. The second stage sets the FILTER column to PASS and fail and extracts biallelic sites
+The pipeline runs in 4 stages:
+1. The first stage creates regions which splits chromosomes into user specified sized chunks (very fast)
+2. The second run performs the mpileup+call on each of the regions and creates missing individual QC plots
+3. The third merges the regions back to chromosome level and creates missing individual QC plots and genome wide depth assessment plots
+6. The last stage sets the FILTER column to PASS and fail and extracts biallelic sites
 
 
 ### Dependencies
@@ -22,24 +24,30 @@ see example folder
 - speciesTableFile = tab delimited file with two columns: 1st is the sampleID, 2nd is the species
 
 ### profile
-update the cluster.yaml file with the path to the location of the **profile** directory
+update the cluster.yaml file with the path to the location of the **profile** directory or use relative paths
 
 ### Update the Snakemake file:
 set the following parameters
 - namePrefix = provide a name for the vcf
 - reference = path to the genome reference fasta
+- fai = fai index of the reference
 - mainChromFile = path to the mainChromFile (see above)
 - scaffoldFile = path to scaffoldFile (optional), or set to "no" if the scaffolds should not be included
 - cramListFile = path to cramListFile (see above)
 - speciesTableFile = path to speciesTableFile (see above)
-paths to the scripts
-- R_QC_script
-- R_depth_script
-- perl_filter_script
-- missingQCpass = "no" this should be "no" the first time the script is run, then it will stop for QC review
+- mutation_rate = mutation rate for this species
+- chromChunkSize = size into which chromsomes are split during mpileup+call step, this will depend on how many samples are processed at the same time
+- biallelicType = choose either "snps,indels" or "snps"
 
-#### after QC files have been created update the following:
-- medianDP = INT, median depth from file bcf_qc/depth/summary_site_depth.txt
+paths to the scripts
+- R_setChromosomeRanges_script
+- R_QC_script
+- perl_filter_script
+- passQC1 = "no" this should be "no" the first time the script is run, then it will stop for 1st QC review, update to "yes" to continue
+- passQC2 = "no" this should be "no" the first time the script is run, then it will stop for 2nd QC review, update to "yes" to continue
+
+#### after both QC steps have been complated update the following:
+- medianDP = INT, median or mode depth from file bcf_qc/depth/summary_site_depth.txt
 - percentDP = INT, +/- percentDP % of medianDP, a nore stringent value would be 25, less stringent 50
 - minQ = INT, minimum QUAL vlaue, for less stringet use 20
 - minGQ = INT, minimum mead GQ value, suggest to use 30
@@ -58,7 +66,7 @@ snakemake -n --printshellcmds -p
 
 To run use:
 ```
-snakemake --profile path2profile/ --latency 20 --jobs n
+snakemake --profile ./profile/ --latency 20 --jobs n
 ```
 
 ### Troubleshooting:

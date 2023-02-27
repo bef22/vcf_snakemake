@@ -233,7 +233,7 @@ sub getMeanGQ {
 	my ($line, $formatString) = @_;
 	my $sumGQ = 0;
 	my $cnt = 0;
-	my $meanGQ;
+	my $meanGQ = 0;
 	
 	my @tabs = split("\t", $line);
 	
@@ -250,11 +250,11 @@ sub getMeanGQ {
 			$cnt++;
 		}
 	}
-
-	$meanGQ = $sumGQ/$cnt;
+	if($sumGQ > 0) {
+		$meanGQ = $sumGQ/$cnt;
+	}
 	#print "$sumGQ\t$cnt\t$meanGQ\n";
 	return $meanGQ;
 	
 }
-
 

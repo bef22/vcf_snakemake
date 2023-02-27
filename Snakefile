@@ -1,51 +1,55 @@
-### Snakefile to create bcf files using bcftools
+### Snakefile to create bcf files using bcftools, splitting chromosome into chunks and merging Scaffolds
 
 """
 
-REQUIRED FILES:
+REQUIRED FILES AND UPDATE PARAMETRS IN SCRIPT:
+- cramListFile = file with the full paths to each cram (if >200 samples merge 50 samples into new sorted bam/cram files!)
 - mainChromFile = file with main chromosome names per row
 - scaffoldFile = file with scaffold names per row, or set to "no" if scaffolds should not be included
-- cramListFile = file with the full paths to each cram
 - speciesTableFile = tab delimited file with 2 columns: 1st is the sampleID, 2nd is the species
+- reference = fasta file of reference genome
+- fai = fai index of the reference genome
 
-UPDATE
-the following parameters in the script below:
-namePrefix = this is the name of the resulting vcf
-reference = path to the genome reference fasta
-mainChromFile, scaffoldFile, cramListFile, speciesTableFile - see above
 
-R_QC_script, R_depth_script, perl_filter_script paths
+UPDATE IN SCRIPT:
+- namePrefix = name of the sample set
+- mutation_rate = 0.001                   # chichlids = 0.001, moths = 0.01
+- chromChunkSize = 10000000               # default is 10000000, for >250 samples suggest to reduce this 5000000 and >1000 to 100000
+- biallelicType = "snps,indels"           # "snps,indels" or "snps", it is more efficient to include the indels at this stage if they might be required!
 
-missingQCpass = "no" this should be "no" the first time the script is run, then it will stop for QC review
+- passQC1 = "no"                          # review missing QC for chromosome chunks, change to yes after QC passed
+- passQC2 = "no"                          # review missing and depth QC after normalisation, change to yes after QC passed
 
-# after QC files have been created update the following
-medianDP = update this with the median depth value from file bcf_qc/depth/summary_site_depth.txt, '<INT>'
-percentDP = medianDP +/- percentDP %, '<INT>', a stringent value would be 25, less stringent 50
-minQ = minimum QUAL vlaue, '<INT>', less stringet use 20
-minGQ = minimum mead GQ value, '<INT>', suggest to use 30
-maxMissing = maximum number of missing samples, '<INT>', less stringent use 75
+
+# after both QC steps have passed update the following
+- medianDP = update this with the median or mode depth value from file bcf_qc/depth/depth_summary.txt, '<INT>'
+- percentDP = medianDP +/- percentDP %, '<INT>', a stringent value would be 25, less stringent 50
+- minQ = minimum QUAL vlaue, '<INT>', less stringet use 20 (in GATK forum it is suggested not to use this for filtering!)
+- minGQ = minimum mead GQ value, '<INT>', suggest to use 30
+- maxMissing = maximum number of missing samples, '<INT>', less stringent use 75
 
 
 RUN
 in a screen terminal and load the following modules
 - module load python-3.9.6-gcc-5.4.0-sbr552h
 
-check how many jobs are required, this command also shows the shell commands it would use:
+check how many jobs are required AT EACH STAGE, this command also shows the shell commands it would use:
 - snakemake -n --printshellcmds -p
 
 to run use:
-- snakemake --profile path2profile/ --latency 20 --jobs n
-
-
+- snakemake --profile ./profile/ --latency 20 --jobs n
 
 
 NOTES
-- tried very hard to better deal with the scaffolds but failed to get snakemake to deal with this
+This script has to be run 4 times!
+1. creates the regions for subsetting chromosomes into chunks (very fast ~1-2 min)
+2. performs mpileup and call and does the missing QC per chunk (this takes the longest and depends on n samples and chunk size)
+3. merges to chromosome level, performs normalisation step and does the missing QC and depth QC
+4. sets filter to PASS and fail terms, extracts biallelic 
 
 
 AUTHORS and UPDATES
-20221129 Written by Bettina Fischer (bef22) - version 1.0
-20221212 updated by Bettina Fischer - version 1.1
+Bettina Fischer, 20230209
 
 """
 
@@ -53,35 +57,47 @@ AUTHORS and UPDATES
 
 
 ### set global parameters
-namePrefix = "zebra_callainos_pearly_MZeb"
+namePrefix = "example"
+mainChromFile = "chromList.txt"            # file with chromosome names per row
+scaffoldFile = "scaffoldList.txt"           # set this to "no" if scaffolds should not be included, otherwise provide the scaffold file
+cramListFile = "cramList.txt"                # file with cramPaths
+speciesTableFile = "speciesTable.txt"        # tab delimited file with 2 columns: 1st is the sampleID, 2nd is the species
 
-reference = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Maylandia_zebra/M_zebra_UMD2a/bwa-mem2_index/GCF_000238955.4_M_zebra_UMD2a_genomic_LG.fa"
+reference = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Astatotilapia_calliptera/fAstCal1.2/GCA_900246225.3_fAstCal1.2_genomic_chromnames_mt.fa"
+fai = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Astatotilapia_calliptera/fAstCal1.2/GCA_900246225.3_fAstCal1.2_genomic_chromnames_mt.fa.fai"
 
-mutation_rate = 0.001                                # chichlids = 0.001
+mutation_rate = 0.001                   # chichlids = 0.001, moths = 0.01
+chromChunkSize = 1000000                # default is 10000000, for >250 samples suggest to reduce this 5000000 and >1000 to 100000
 
-mainChromFile = "example/chromList.txt"              # file with chromosome names per row
-scaffoldFile = "example/scaffoldList.txt"            # set this to "no" if scaffolds should not be included, otherwise provide the scaffold file
-cramListFile = "example/cramList.txt"                # file with cramPaths
-speciesTableFile = "example/speciesTable.txt"        # tab delimited file with 2 columns: 1st is the sampleID, 2nd is the species
 
-# set this to "no" if the script hasn't been run before
-missingQCpass = "no"                        # update this to "yes" after reviewing the QC files, update the filter parameters and start snakemake again
+### paths to dependant scripts
+R_setChromosomeRanges_script = "./scripts/setChromosomeRanges.R"
+R_QC_script = "./scripts/vcf_QC.R"
+perl_filter_script = "./scripts/setPassFilter.pl"
+
+
+### biallelic
+# choose either "snps" or "snps,indels"
+# if there is a chance that you might want to use the indels select them now and subset 
+# snps at GWAS stage when creating input files
+#biallelicType = "snps"                 # snps only
+biallelicType = "snps,indels"           # snps and indels
+
+
+### QC stops
+# set this to "no" if the script hasn't been run before, update to "yes" after running next stage
+passQC1 = "no"                          # review missing QC for chromosome chunks
+passQC2 = "no"                          # review missing and depth QC after normalisation
 
 
 ### filter parameters for PASS sites - update these after first pass of script
 # the result file name string will be named as _DP<percentDP>_Q<minQ>_GQ<minGQ>_MM<maxMissing>
 # to switch off a parameter set it to 0
-medianDP = 0                                 # update this with the median depth value from file bcf_qc/depth/summary_site_depth.txt, '<INT>'
-percentDP = 25                               # medianDP +/- percentDP %, '<INT>'
-minQ = 20                                    # minimum QUAL vlaue, '<INT>'
-minGQ = 30                                   # minimum mead GQ value, '<INT>'
-maxMissing = 50                              # % max missing per site, '<INT>'
-
-
-### paths to dependant scripts
-R_QC_script = "scripts/QC.R"
-R_depth_script = "scripts/depth.R"
-perl_filter_script = "scripts/setPassFilter.pl"
+medianDP = 0                          # update this with the median depth value from file bcf_qc/depth/summary_site_depth.txt, '<INT>'
+percentDP = 35                          # medianDP +/- percentDP %, '<INT>'
+minQ = 20                               # minimum QUAL vlaue, '<INT>'
+minGQ = 30                              # minimum mead GQ value, '<INT>'
+maxMissing = 10                         # % max missing per site, '<INT>'
 
 
 ###############################################################################
@@ -90,6 +106,7 @@ perl_filter_script = "scripts/setPassFilter.pl"
 import pdb
 import subprocess
 import os
+import re
 
 
 # create the .slurm directory
@@ -113,18 +130,21 @@ with open(mainChromFile) as f:
     chromosomes=f.readlines()
 main_chrs=[]
 chrs=[]
+chrsPlus=[]
 
 for string in chromosomes:
     chromosomes_e = string.replace("\n","")
     main_chrs.append(chromosomes_e)
     chrs.append(chromosomes_e)
+    chrsPlus.append(chromosomes_e)
 #print("chromosome names used: " + str(main_chrs) + '\n')
 
 
 ### scaffolds wildcards
 scaffolds=[]
-#if callScaffolds == "yes":
 if scaffoldFile != "no":
+    # add scaffold name 
+    chrsPlus.append("Scaffolds")
     scaff=[]
     with open(scaffoldFile) as f:
         scaff=f.readlines()
@@ -139,33 +159,86 @@ if scaffoldFile != "no":
 #print("all names used: " + str(chrs) + '\n')
 
 
+### Setting up the regions wildcard
+regionsExists = os.path.isfile("bcf_raw/regions.txt")
+regions=[]
+#test=[]
+if (regionsExists):
+    subregions=[]
+    with open("bcf_raw/regions.txt") as f:
+        subregions=f.readlines()
+    for string in subregions:
+        regions_e = string.replace("\n","")
+#        s = 'mississipi'
+#        old = '_'
+#       new = ':'
+#        maxreplace = 1
+#        test_e = new.join(regions_e.rsplit(old, maxreplace))
+        regions.append(regions_e)
+#        test.append(test_e)
+    print("regions: " + str(regions) + '\n')
+#    print("test: " + str(test) + '\n')
+
+
+### replace the last _ with : in regions
+def rreplace(s, old, new, occurrence):
+ li = s.rsplit(old, occurrence)
+ return new.join(li)
+
 
 # rules not passed to SLURM
-localrules: all, tabix_biallelic
+localrules: all, set_chrom_ranges, tabix_biallelic
 
 
 # create list of output files for first stage
 myoutput = list()
-myoutput.append(expand("bcf_call/{namePrefix}.call.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix))
-myoutput.append(expand("bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix))
-myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss", chrs=chrs, namePrefix=namePrefix))
-myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}_missing_individual_summary_report.txt", namePrefix=namePrefix)) 
-myoutput.append(expand("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz", main_chrs=main_chrs, namePrefix=namePrefix))
-myoutput.append("bcf_qc/depth/site_depth_histogram.png")
-myoutput.append("bcf_qc/depth/summary_site_depth.txt")
+myoutput.append("bcf_raw/regions.txt")
+if (regionsExists):
+    myoutput.append(expand("bcf_raw/{namePrefix}.raw.{regions}.bcf.gz", regions=regions, namePrefix=namePrefix))
+    myoutput.append(expand("bcf_qc/raw_missing_individual/{namePrefix}.raw.{regions}.imiss", regions=regions, namePrefix=namePrefix))
+    myoutput.append(expand("bcf_qc/raw_missing_individual/{namePrefix}_raw_missing_individual_summary_report.txt", namePrefix=namePrefix)) 
 
 
-# steps after reviewing the QC and depth files
-if missingQCpass == "yes":
-    myoutput.append(expand("bcf_normf/{namePrefix}{filterString}.normf.{chrs}.bcf.gz.csi", chrs=chrs, namePrefix=namePrefix, filterString=filterString))
-    myoutput.append(expand("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix, filterString=filterString))
-    myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz", namePrefix=namePrefix, filterString=filterString))
-    myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz.csi", namePrefix=namePrefix, filterString=filterString))
+
+# steps after reviewing the 1st QC files
+    if passQC1 == "yes":       
+        myoutput.append(expand("bcf_call/{namePrefix}.call.{chrsPlus}.bcf.gz", chrsPlus=chrsPlus, namePrefix=namePrefix))
+        myoutput.append(expand("bcf_norm/{namePrefix}.norm.{chrsPlus}.bcf.gz", chrsPlus=chrsPlus, namePrefix=namePrefix))
+        myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}.{chrsPlus}.imiss", chrsPlus=chrsPlus, namePrefix=namePrefix))
+        myoutput.append(expand("bcf_qc/missing_individual/{namePrefix}_missing_individual_summary_report.txt", namePrefix=namePrefix)) 
+        myoutput.append(expand("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt.gz", main_chrs=main_chrs, namePrefix=namePrefix))
+        myoutput.append("bcf_qc/depth/depth_histogram.png")
+        myoutput.append("bcf_qc/depth/depth_summary.txt")
+
+
+# steps after reviewing the 2nd QC files
+    if passQC2 == "yes":
+            myoutput.append(expand("bcf_normf/{namePrefix}{filterString}.normf.{chrsPlus}.bcf.gz.csi", chrsPlus=chrsPlus, namePrefix=namePrefix, filterString=filterString))
+            myoutput.append(expand("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrsPlus}.bcf.gz", chrsPlus=chrsPlus, namePrefix=namePrefix, filterString=filterString))
+            myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz", namePrefix=namePrefix, filterString=filterString))
+            myoutput.append(expand("bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz.csi", namePrefix=namePrefix, filterString=filterString))
+
 	
 
 rule all:
     input:
         myoutput
+
+
+### create chromosome regions
+# R script
+# this creates the regions for mpileup and call step
+# it also creates the bcf list files for concat step, all scaffolds are merged into one file
+rule set_chrom_ranges:
+    input:
+        {mainChromFile}, {fai}
+#        {mainChromFile}, {scaffoldFile}, {fai}
+    output:
+        "bcf_raw/regions.txt"
+    shell:
+        "Rscript {R_setChromosomeRanges_script} {namePrefix} {mainChromFile} {scaffoldFile} {fai} {chromChunkSize}"
+
+
 
 
 ### run bcftools mpileup for each chr/LG (and optional the scaffolds)
@@ -198,11 +271,50 @@ rule mpileup_call_filltags:
         cramList = {cramListFile},	
         speciesTable = {speciesTableFile}
     output:
-        "bcf_call/{namePrefix}.call.{chrs}.bcf.gz"
+        "bcf_raw/{namePrefix}.raw.{regions}.bcf.gz"
     params:
-        chromosome = lambda wildcards: wildcards.chrs
+        chrRegions = lambda wildcards: rreplace(wildcards.regions, '_', ':', 1)
+
     shell:
-        "bcftools mpileup -f {reference} -b {input.cramList} -r {params.chromosome} -C 0 -d 250000 -L 250000 -q 20 -Q 13 --ff UNMAP,SECONDARY,QCFAIL,DUP -a FORMAT/AD,FORMAT/DP,QS,SP,FORMAT/SCR,INFO/AD,INFO/SCR -p -O u | bcftools call --ploidy 2 -a PV4,GQ,GP -m -P {mutation_rate} -O u -G {input.speciesTable} | bcftools +fill-tags -O b -o {output} -- -t 'AF,ExcHet,NS'"
+        "bcftools mpileup -f {reference} -b {input.cramList} -r {params.chrRegions} -C 0 -d 250000 -L 250000 -q 20 -Q 13 --ff UNMAP,SECONDARY,QCFAIL,DUP -a FORMAT/AD,FORMAT/DP,QS,SP,FORMAT/SCR,INFO/AD,INFO/SCR -p -O u | bcftools call --ploidy 2 -a PV4,GQ,GP -m -P {mutation_rate} -O u -G {input.speciesTable} | bcftools +fill-tags -O b -o {output} -- -t 'AF,ExcHet,NS'"
+
+
+### check for missing individual in raw files
+rule raw_missing_individual:
+    input:
+        "bcf_raw/{namePrefix}.raw.{regions}.bcf.gz"
+    output:
+        "bcf_qc/raw_missing_individual/{namePrefix}.raw.{regions}.imiss"
+    shell:
+        "vcftools --bcf {input} --missing-indv --stdout > {output}"
+
+
+### plot and report missing individual R in raw files
+# creates a stripchart for chromosomes and scaffolds and a report file which contains individuals which are 
+# above 1.5 times the interquartile range above the upper quartile (e.g. whiskers in boxplot) or have
+# > 0.9 missing
+rule raw_report_missing_individuals:
+    input:
+        expand("bcf_qc/raw_missing_individual/{namePrefix}.raw.{regions}.imiss", regions=regions, namePrefix=namePrefix)
+    params:
+        filePath = "bcf_qc/raw_missing_individual/"
+    output:
+        "bcf_qc/raw_missing_individual/{namePrefix}_raw_missing_individual_summary_report.txt"
+    shell:
+        "Rscript {R_QC_script} {params.filePath} {namePrefix} bcf_raw/regions.txt no raw_imiss"
+
+
+#***** check-point, script stops here and <passQC1> must be updated to "yes" to continue *****#
+
+
+### concat to chromosome level and all scaffolds
+rule concat:
+    input:
+        "bcf_call/{chrsPlus}_list.txt"
+    output:
+        "bcf_call/{namePrefix}.call.{chrsPlus}.bcf.gz"
+    shell:
+        "bcftools concat -f {input} -O b -o {output}"
 
 
 ### normalise and merge multiallelic sites
@@ -211,9 +323,9 @@ rule mpileup_call_filltags:
 #
 rule norm_merge:
     input:
-        "bcf_call/{namePrefix}.call.{chrs}.bcf.gz"
+        "bcf_call/{namePrefix}.call.{chrsPlus}.bcf.gz"
     output:
-        "bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz"
+        "bcf_norm/{namePrefix}.norm.{chrsPlus}.bcf.gz"
     shell:
         "bcftools norm -f {reference} -m +any -O u {input} | bcftools +fill-tags -O b -o {output} -- -t 'AF,AC,AN,ExcHet,NS'"
 
@@ -221,27 +333,26 @@ rule norm_merge:
 ### check for missing individual
 rule missing_individual:
     input:
-        "bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz"
+        "bcf_norm/{namePrefix}.norm.{chrsPlus}.bcf.gz"
     output:
-        "bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss"
-    params:
-        chromosome = lambda wildcards: wildcards.chrs
+        "bcf_qc/missing_individual/{namePrefix}.{chrsPlus}.imiss"
     shell:
-        "vcftools --bcf {input} --chr {params.chromosome} --missing-indv --stdout > {output}"
+        "vcftools --bcf {input} --missing-indv --stdout > {output}"
 
 
 ### plot and report missing individual R
-# creates a stripchart for chromosomes and scaffolds and a report file which contains individuals which are above 1.5 times the interquartile range above the upper quartile (e.g. whiskers in boxplot)
+# creates a stripchart for chromosomes and scaffolds and a report file which contains individuals which are 
+# above 1.5 times the interquartile range above the upper quartile (e.g. whiskers in boxplot) or have
+# > 0.9 missing
 rule report_missing_individuals:
     input:
-        expand("bcf_qc/missing_individual/{namePrefix}.{chrs}.imiss", chrs=chrs, namePrefix=namePrefix)
+        expand("bcf_qc/missing_individual/{namePrefix}.{chrsPlus}.imiss", chrsPlus=chrsPlus, namePrefix=namePrefix)
     params:
         filePath = "bcf_qc/missing_individual/"
     output:
         "bcf_qc/missing_individual/{namePrefix}_missing_individual_summary_report.txt"
     shell:
-        "Rscript {R_QC_script} {params.filePath} {namePrefix} {mainChromFile} {scaffoldFile} individual"
-
+        "Rscript {R_QC_script} {params.filePath} {namePrefix} {mainChromFile} {scaffoldFile} imiss"
 
 
 ### get site depths across main chromosomes
@@ -253,7 +364,6 @@ rule site_depth:
         temp("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt")
     shell:
         "bcftools view {input} | vcftools --vcf - --site-depth --stdout | grep -v 'SUM_DEPTH' | cut -f 3 | sort -n | uniq -c > {output}"
-	#"bcftools view --min-ac 1 {input} | vcftools --vcf - --site-depth --stdout > {output}"
 
 
 ### gzip depth files
@@ -274,24 +384,22 @@ rule median_DP:
     params:
         filePath = "bcf_qc/depth/"
     output:
-        "bcf_qc/depth/site_depth_histogram.png", "bcf_qc/depth/summary_site_depth.txt"
+        "bcf_qc/depth/depth_histogram.png", "bcf_qc/depth/depth_summary.txt"
     shell:
-        "Rscript {R_depth_script} {params.filePath} {namePrefix} {mainChromFile}"
+        "Rscript {R_QC_script} {params.filePath} {namePrefix} {mainChromFile} no depth"
 
 
-
-#***** check-point, script stops here and <missingQCpass> must be updated to "yes" to continue *****#
-
+#***** check-point, script stops here and <passQC2> must be updated to "yes" to continue *****#
 
 
 ### set filter to PASS and lowDP|highDP|lowQ|lowGQ|highMiss flags
 # this only sets the filter column flag but doesn't remove any sites
 rule set_vcf_filter:
     input:
-        "bcf_norm/{namePrefix}.norm.{chrs}.bcf.gz"
+        "bcf_norm/{namePrefix}.norm.{chrsPlus}.bcf.gz"
     output:
-        bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz",
-        csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrs}.bcf.gz.csi"
+        bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz",
+        csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz.csi"
     run:
         shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
         shell("tabix -p bcf {output.bcf}")
@@ -300,17 +408,17 @@ rule set_vcf_filter:
 ### biallelic per chromosome - temporary file
 rule extract_biallelic:
     input:
-        "bcf_normf/{namePrefix}{filterString}.normf.{chrs}.bcf.gz"
+        "bcf_normf/{namePrefix}{filterString}.normf.{chrsPlus}.bcf.gz"
     output:
-        temp("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz")
+        temp("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrsPlus}.bcf.gz")
     shell:
-        "bcftools view -m2 -M2 -v snps -O b -o {output} {input}"
+        "bcftools view -m2 -M2 -v {biallelicType} -O b -o {output} {input}"
 
 
 ### merge biallelic
 rule merge_biallelic_bcfs:
     input:
-        expand("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrs}.bcf.gz", chrs=chrs, namePrefix=namePrefix, filterString=filterString)
+        expand("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrsPlus}.bcf.gz", chrsPlus=chrsPlus, namePrefix=namePrefix, filterString=filterString)
     output:
         "bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz"
     shell:
@@ -325,7 +433,5 @@ rule tabix_biallelic:
         "bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz.csi"
     shell:
         "tabix -p bcf {input}"
-
-
 
 
