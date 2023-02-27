@@ -46,7 +46,7 @@ paths to the scripts
 - passQC1 = "no" this should be "no" the first time the script is run, then it will stop for 1st QC review, update to "yes" to continue
 - passQC2 = "no" this should be "no" the first time the script is run, then it will stop for 2nd QC review, update to "yes" to continue
 
-#### after all QC files have been created update the following:
+#### after both QC steps have been complated update the following:
 - medianDP = INT, median or mode depth from file bcf_qc/depth/summary_site_depth.txt
 - percentDP = INT, +/- percentDP % of medianDP, a nore stringent value would be 25, less stringent 50
 - minQ = INT, minimum QUAL vlaue, for less stringet use 20
