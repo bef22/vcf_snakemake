@@ -6,7 +6,7 @@ The pipeline runs in 4 stages:
 1. The first stage creates regions which splits chromosomes into user specified sized chunks (very fast)
 2. The second run performs the mpileup+call on each of the regions and creates missing individual QC plots
 3. The third merges the regions back to chromosome level and creates missing individual QC plots and genome wide depth assessment plots
-6. The large stage sets the FILTER column to PASS and fail and extracts biallelic sites
+6. The last stage sets the FILTER column to PASS and fail and extracts biallelic sites
 
 
 ### Dependencies
@@ -24,7 +24,7 @@ see example folder
 - speciesTableFile = tab delimited file with two columns: 1st is the sampleID, 2nd is the species
 
 ### profile
-update the cluster.yaml file with the path to the location of the **profile** directory
+update the cluster.yaml file with the path to the location of the **profile** directory or use relative paths
 
 ### Update the Snakemake file:
 set the following parameters
@@ -36,7 +36,7 @@ set the following parameters
 - cramListFile = path to cramListFile (see above)
 - speciesTableFile = path to speciesTableFile (see above)
 - mutation_rate = mutation rate for this species
-- chromChunkSize = size into which chromsomes are split during mpileup+call step, this will depend on how many samples are processed
+- chromChunkSize = size into which chromsomes are split during mpileup+call step, this will depend on how many samples are processed at the same time
 - biallelicType = choose either "snps,indels" or "snps"
 
 paths to the scripts
