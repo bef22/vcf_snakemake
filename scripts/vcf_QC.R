@@ -11,6 +11,7 @@
 # - depth summary
 #
 # Bettina Fischer, 20230126
+# 20230328, fixed bug when no samples map to chromosome
 ###############################################################################
 
 #Read command line arguments
@@ -43,6 +44,9 @@ if(type == "raw_imiss") {
     mFile <- paste0(filePath, namePrefix, ".raw.", chrList[i], ".imiss")
     x <- read.delim(mFile, sep="\t")
     
+    # if no samples are mapped to scaffold/chromosome report all as missing
+    x$F_MISS <- ifelse(is.na(x$F_MISS), 1, x$F_MISS)
+
     # get outlier
     bx <- boxplot(x$F_MISS, plot = F)
     x.upper <- bx$stats[5,1]
@@ -159,6 +163,9 @@ if(type == "imiss") {
     mFile <- paste0(filePath, namePrefix, ".", chrList[i], ".imiss")
     x <- read.delim(mFile, sep="\t")
     
+    # if no samples are mapped to scaffold/chromosome report all as missing
+    x$F_MISS <- ifelse(is.na(x$F_MISS), 1, x$F_MISS)
+
     # get outlier
     bx <- boxplot(x$F_MISS, plot = F)
     x.upper <- bx$stats[5,1]
