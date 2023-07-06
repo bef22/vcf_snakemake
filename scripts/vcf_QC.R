@@ -12,6 +12,7 @@
 #
 # Bettina Fischer, 20230126
 # 20230328, fixed bug when no samples map to chromosome
+# 20230706, fixed bug in missing plots
 ###############################################################################
 
 #Read command line arguments
@@ -119,7 +120,7 @@ if(type == "raw_imiss") {
   # multipage pdf with max 50 per row
   pdf(barplotFile, height=8.27, width=11.69, onefile=TRUE)
   max.n <- 55
-  max.plotrows <- ceiling(length(mList)/max.n)
+  max.plotrows <- ceiling(length(cs)/max.n)
   par(mar=c(15,4,2,1))
   
   if(length(cs) > max.n) {
@@ -238,7 +239,7 @@ if(type == "imiss") {
   # multipage pdf with max 50 per row
   pdf(barplotFile, height=8.27, width=11.69, onefile=TRUE)
   max.n <- 55
-  max.plotrows <- ceiling(length(mList)/max.n)
+  max.plotrows <- ceiling(length(cs)/max.n)
   par(mar=c(15,4,2,1))
   
   if(length(cs) > max.n) {
@@ -320,9 +321,10 @@ if(type == "depth") {
   median.depth <- median(depths)
   mean.depth <- mean(depths)
   
-  # calculate the mode, but exclude very low values
-  getMode <- function(x, min.cutoff=10) {
-    ux <- unique(x[x > min.cutoff])
+  # calculate the mode, but exclude very low values, now using 0.2 quantile
+  getMode <- function(x, min.cutoff=0.2) {
+    #ux <- unique(x[x > min.cutoff])
+    ux <- unique(x[x > quantile(x, min.cutoff)])
     ux[which.max(tabulate(match(x, ux)))]
   }
   Mode <- getMode(depths)
@@ -341,12 +343,16 @@ if(type == "depth") {
   abline(v=median.depth, lwd=2, lty=2, col="red")
   abline(v=mean.depth, lwd=2, lty=2, col="blue")
   abline(v=Mode, lwd=2, lty=2, col="forestgreen")
-  abline(v=Mode-(Mode*0.25), lwd=1, lty=2)
-  abline(v=Mode+(Mode*0.25), lwd=1, lty=2)
-  abline(v=Mode-(Mode*0.35), lwd=1, lty=3)
-  abline(v=Mode+(Mode*0.35), lwd=1, lty=3)
-  
-  legend("topright", legend=c("median", "mean", "mode", "+/-25% mode", "+/-35% mode"), lwd=2, lty=c(1,1,1,2,3), 
+  abline(v=Mode-(Mode*0.25), lwd=1, lty=2, col="forestgreen")
+  abline(v=Mode+(Mode*0.25), lwd=1, lty=2, col="forestgreen")
+  abline(v=Mode-(Mode*0.35), lwd=1, lty=3, col="forestgreen")
+  abline(v=Mode+(Mode*0.35), lwd=1, lty=3, col="forestgreen")
+  abline(v=median.depth-(median.depth*0.25), lwd=1, lty=2, col="blue")
+  abline(v=median.depth+(median.depth*0.25), lwd=1, lty=2, col="blue")
+  abline(v=median.depth-(median.depth*0.35), lwd=1, lty=3, col="blue")
+  abline(v=median.depth+(median.depth*0.35), lwd=1, lty=3, col="blue")
+
+  legend("topright", legend=c("median", "mean", "mode", "+/-25%", "+/-35%"), lwd=2, lty=c(1,1,1,2,3), 
          col=c("red", "blue", "forestgreen", "black", "black"), bty="n")
   invisible(dev.off())
   
