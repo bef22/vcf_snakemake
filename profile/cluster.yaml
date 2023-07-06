@@ -65,3 +65,8 @@ extract_biallelic:
 merge_biallelic_bcfs:
   jobname: "{rule}"
   cpuspertask: 1
+
+tabix_biallelic:
+  jobname: "{rule}"
+  cpuspertask: 1
+
