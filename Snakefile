@@ -14,7 +14,7 @@ REQUIRED FILES AND UPDATE PARAMETRS IN SCRIPT:
 UPDATE IN SCRIPT:
 - namePrefix = name of the sample set
 - mutation_rate = 0.001                   # chichlids = 0.001, moths = 0.01
-- chromChunkSize = 10000000               # default is 10000000, for >250 samples suggest to reduce this 5000000 and >1000 to 100000
+- chromChunkSize = 1000000                # default is 1000000, for <50 samples could increase this to 5000000
 - biallelicType = "snps,indels"           # "snps,indels" or "snps", it is more efficient to include the indels at this stage if they might be required!
 
 - passQC1 = "no"                          # review missing QC for chromosome chunks, change to yes after QC passed
@@ -187,7 +187,8 @@ def rreplace(s, old, new, occurrence):
 
 
 # rules not passed to SLURM
-localrules: all, set_chrom_ranges, tabix_biallelic
+#localrules: all, set_chrom_ranges, tabix_biallelic
+localrules: all, set_chrom_ranges
 
 
 # create list of output files for first stage
