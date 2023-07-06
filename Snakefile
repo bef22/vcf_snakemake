@@ -44,12 +44,15 @@ NOTES
 This script has to be run 4 times!
 1. creates the regions for subsetting chromosomes into chunks (very fast ~1-2 min)
 2. performs mpileup and call and does the missing QC per chunk (this takes the longest and depends on n samples and chunk size)
+     after reviewing the QC plots change passQC1 = "yes" (but keep passQC2 = "no")
 3. merges to chromosome level, performs normalisation step and does the missing QC and depth QC
+     after reviewing the QC plots change passQC2 = "yes" an update the medianDP (and other filter parameters)
 4. sets filter to PASS and fail terms, extracts biallelic 
 
 
 AUTHORS and UPDATES
 Bettina Fischer, 20230209
+20230706, removed tabix_biallelic from localrules
 
 """
 
@@ -67,7 +70,7 @@ reference = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Astatotilapia_ca
 fai = "/rds/project/rd109/rds-rd109-durbin-group/ref/fish/Astatotilapia_calliptera/fAstCal1.2/GCA_900246225.3_fAstCal1.2_genomic_chromnames_mt.fa.fai"
 
 mutation_rate = 0.001                   # chichlids = 0.001, moths = 0.01
-chromChunkSize = 1000000                # default is 10000000, for >250 samples suggest to reduce this 5000000 and >1000 to 100000
+chromChunkSize = 1000000                # default is 1000000, for <50 samples could increase this to 5000000
 
 
 ### paths to dependant scripts
