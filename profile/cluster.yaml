@@ -5,7 +5,7 @@ __default__:
   cpuspertask: 1
   time: "35:00:00"
   account: "DURBIN-SL2-CPU"
-  partition: "skylake-himem"
+  partition: "icelake-himem"
   mailtype: "FAIL"
   output: ".slurm/%x_%A.out"
 
