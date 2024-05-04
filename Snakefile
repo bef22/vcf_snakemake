@@ -3,6 +3,7 @@
 """
 
 REQUIRED FILES AND UPDATE PARAMETRS IN SCRIPT:
+- user = crsid
 - cramListFile = file with the full paths to each cram (if >200 samples merge 50 samples into new sorted bam/cram files!)
 - mainChromFile = file with main chromosome names per row
 - scaffoldFile = file with scaffold names per row, or set to "no" if scaffolds should not be included
@@ -30,14 +31,16 @@ UPDATE IN SCRIPT:
 
 
 RUN
-in a screen terminal and load the following modules
-- module load python-3.9.6-gcc-5.4.0-sbr552h
+login to icelake node using login-icelake.hpc.cam.ac.uk
+start a screen terminal (screen -RD)
+make sure to use snakemake version 7.8.5
 
 check how many jobs are required AT EACH STAGE, this command also shows the shell commands it would use:
 - snakemake -n --printshellcmds -p
 
 to run use:
-- snakemake --profile ./profile/ --latency 20 --jobs n
+- snakemake --profile .full_path_to/profile/ --latency 20 --jobs n
+where n is the number of jobs to be allowed to start in parallel
 
 
 NOTES
@@ -53,6 +56,7 @@ This script has to be run 4 times!
 AUTHORS and UPDATES
 Bettina Fischer, 20230209
 20230706, removed tabix_biallelic from localrules
+20240504, updated to icelake-himem and hard coded the path to softwares in software_RHEL8/bin
 
 """
 
@@ -102,6 +106,12 @@ minQ = 20                               # minimum QUAL vlaue, '<INT>'
 minGQ = 30                              # minimum mead GQ value, '<INT>'
 maxMissing = 10                         # % max missing per site, '<INT>'
 
+
+###############################################################################
+### the following shouldn't be changed to ensure working software versions on icelake are used
+bcfPath = f'/home/{user}/rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/bin/bcftools'
+vcfPath = f'/home/{user}/rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/bin/vcftools'
+tabixPath = f'/home/{user}/rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/bin/tabix'
 
 ###############################################################################
 # the following shouldn't require changes
@@ -280,7 +290,7 @@ rule mpileup_call_filltags:
         chrRegions = lambda wildcards: rreplace(wildcards.regions, '_', ':', 1)
 
     shell:
-        "bcftools mpileup -f {reference} -b {input.cramList} -r {params.chrRegions} -C 0 -d 250000 -L 250000 -q 20 -Q 13 --ff UNMAP,SECONDARY,QCFAIL,DUP -a FORMAT/AD,FORMAT/DP,QS,SP,FORMAT/SCR,INFO/AD,INFO/SCR -p -O u | bcftools call --ploidy 2 -a PV4,GQ,GP -m -P {mutation_rate} -O u -G {input.speciesTable} | bcftools +fill-tags -O b -o {output} -- -t 'AF,ExcHet,NS'"
+        "{bcfPath} mpileup -f {reference} -b {input.cramList} -r {params.chrRegions} -C 0 -d 250000 -L 250000 -q 20 -Q 13 --ff UNMAP,SECONDARY,QCFAIL,DUP -a FORMAT/AD,FORMAT/DP,QS,SP,FORMAT/SCR,INFO/AD,INFO/SCR -p -O u | {bcfPath} call --ploidy 2 -a PV4,GQ,GP -m -P {mutation_rate} -O u -G {input.speciesTable} | {bcfPath} +fill-tags -O b -o {output} -- -t 'AF,ExcHet,NS'"
 
 
 ### check for missing individual in raw files
@@ -290,7 +300,7 @@ rule raw_missing_individual:
     output:
         "bcf_qc/raw_missing_individual/{namePrefix}.raw.{regions}.imiss"
     shell:
-        "vcftools --bcf {input} --missing-indv --stdout > {output}"
+        "{vcfPath} --bcf {input} --missing-indv --stdout > {output}"
 
 
 ### plot and report missing individual R in raw files
@@ -318,7 +328,7 @@ rule concat:
     output:
         "bcf_call/{namePrefix}.call.{chrsPlus}.bcf.gz"
     shell:
-        "bcftools concat -f {input} -O b -o {output}"
+        "{bcfPath} concat -f {input} -O b -o {output}"
 
 
 ### normalise and merge multiallelic sites
@@ -331,7 +341,7 @@ rule norm_merge:
     output:
         "bcf_norm/{namePrefix}.norm.{chrsPlus}.bcf.gz"
     shell:
-        "bcftools norm -f {reference} -m +any -O u {input} | bcftools +fill-tags -O b -o {output} -- -t 'AF,AC,AN,ExcHet,NS'"
+        "{bcfPath} norm -f {reference} -m +any -O u {input} | {bcfPath} +fill-tags -O b -o {output} -- -t 'AF,AC,AN,ExcHet,NS'"
 
 
 ### check for missing individual
@@ -341,7 +351,7 @@ rule missing_individual:
     output:
         "bcf_qc/missing_individual/{namePrefix}.{chrsPlus}.imiss"
     shell:
-        "vcftools --bcf {input} --missing-indv --stdout > {output}"
+        "{vcfPath} --bcf {input} --missing-indv --stdout > {output}"
 
 
 ### plot and report missing individual R
@@ -367,7 +377,7 @@ rule site_depth:
     output:
         temp("bcf_qc/depth/{namePrefix}.{main_chrs}_freq.txt")
     shell:
-        "bcftools view {input} | vcftools --vcf - --site-depth --stdout | grep -v 'SUM_DEPTH' | cut -f 3 | sort -n | uniq -c > {output}"
+        "{bcfPath} view {input} | {vcfPath} --vcf - --site-depth --stdout | grep -v 'SUM_DEPTH' | cut -f 3 | sort -n | uniq -c > {output}"
 
 
 ### gzip depth files
@@ -405,8 +415,8 @@ rule set_vcf_filter:
         bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz",
         csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz.csi"
     run:
-        shell("bcftools view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | bcftools view -O b -o {output.bcf}")
-        shell("tabix -p bcf {output.bcf}")
+        shell("{bcfPath} view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | {bcfPath} view -O b -o {output.bcf}")
+        shell("{tabixPath} -p bcf {output.bcf}")
 
 
 ### biallelic per chromosome - temporary file
@@ -416,7 +426,7 @@ rule extract_biallelic:
     output:
         temp("bcf_biallelic_tmp/{namePrefix}{filterString}.biallelic.{chrsPlus}.bcf.gz")
     shell:
-        "bcftools view -m2 -M2 -v {biallelicType} -O b -o {output} {input}"
+        "{bcfPath} view -m2 -M2 -v {biallelicType} -O b -o {output} {input}"
 
 
 ### merge biallelic
@@ -426,7 +436,7 @@ rule merge_biallelic_bcfs:
     output:
         "bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz"
     shell:
-        "bcftools concat -O b -o {output} {input}"
+        "{bcfPath} concat -O b -o {output} {input}"
 
 
 ### tabix
@@ -436,6 +446,6 @@ rule tabix_biallelic:
     output:
         "bcf_biallelic/{namePrefix}{filterString}.biallelic.bcf.gz.csi"
     shell:
-        "tabix -p bcf {input}"
+        "{tabixPath} -p bcf {input}"
 
 
