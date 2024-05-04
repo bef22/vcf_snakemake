@@ -96,6 +96,12 @@ To run use the full path to the profile folder, and where n is the maximum numbe
 snakemake --profile full_path_to/profile/ --latency 20 --jobs n
 ```
 
+The pipeline runs in 4 stages:
+1. The first stage creates regions which splits chromosomes into user specified sized chunks (very fast)
+2. The second run performs the mpileup+call on each of the regions and creates missing individual QC plots. After reviewing the raw QC plots update passQC1 = "yes" (but leave passQC2 = "no")
+3. The third merges the regions back to chromosome level and creates missing individual QC plots and genome wide depth assessment plots. After reviewing the QC plots update passQC2 = "yes" and update the filter parameters
+6. The last stage sets the FILTER column to PASS and fail and extracts biallelic sites
+
 
 ### Troubleshooting:
 You will receive an email for each failed submission, you can check the log files per rule and file/submission in .slurm directory.
