@@ -1,4 +1,4 @@
-cluster-config: "./profile/cluster.yaml"
+cluster-config: ".change_to_full_path_to/profile/cluster.yaml"
 cluster: "sbatch --job-name={cluster.jobname} --nodes={cluster.nodes} --ntasks-per-node={cluster.ntaskspernode} --cpus-per-task={cluster.cpuspertask} --time={cluster.time} --account={cluster.account} --partition={cluster.partition} --mail-type={cluster.mailtype} --output={cluster.output} --export=ALL "
 jobs: 99998
 verbose: true
