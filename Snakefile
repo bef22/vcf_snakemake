@@ -62,6 +62,7 @@ Bettina Fischer, 20230209
 
 ###############################################################################
 
+user = "crsid"                           # set your crsid, e.g. bef22
 
 ### set global parameters
 namePrefix = "example"
