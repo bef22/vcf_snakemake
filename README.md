@@ -12,6 +12,29 @@ The pipeline runs in 4 stages:
 ### Dependencies
 - snakemake v7.8.5  (It only seems to work for snakemake v7.8.5 and not any later versions!)
 
+To get this working on rds you might have to
+1. install python 3.9.6
+```
+conda install python=3.9.6
+```
+3. copy this into your .local folder (be aware that this might break/affect other dependencies!)
+```
+cd .local
+cp -r ../rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/Bettina_local/* .
+```
+(you can ignore the permission issues for the other python shared folders)
+
+3. update your .bashrc file by adding the following paths
+
+PATH=$PATH:~/.local/bin
+
+export BCFTOOLS_PLUGINS=~/rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/bcftools_1.20/plugins/
+
+4. run source on the .bashrc to take effect
+
+```
+source ~/.bashrc
+```
 The following software versions have been hard coded in the Snakefile to use the compiled versions to run on icelake RHLE8 (rds/rds-durbin-group-8b3VcZwY7rY/software_RHEL8/bin/)
 - bcftools v1.20
 - vcftools v0.1.17
@@ -37,6 +60,8 @@ see example folder which is for Maylandia genome aligned data
 - scaffoldFile = file with scaffold names per row (optional)
 - cramListFile = file with the full paths to each cram file per row
 - speciesTableFile = tab delimited file with two columns: 1st is the sampleID, 2nd is the species
+
+**Important**: For the speciesTableFile you must use same species for all individuals in the 2nd column for QTL crosses or e.g. Masoko samples! Only have a different 'label' in the second column if there are indeed different species.
 
 #### Main chromosome names for cichlid refrerence assemblies
 - fAstCal1.2: chr1, chr2, chr3 ... chr20, chr22, chr23
