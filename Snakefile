@@ -416,7 +416,7 @@ rule set_vcf_filter:
         bcf="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz",
         csi="bcf_normf/{namePrefix}_DP{percentDP}_Q{minQ}_GQ{minGQ}_MM{maxMissing}.normf.{chrsPlus}.bcf.gz.csi"
     run:
-        shell("{bcfPath} view {input} | {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | {bcfPath} view -O b -o {output.bcf}")
+        shell("{bcfPath} view {input} | perl {perl_filter_script} --medianDP {medianDP} --percentDP {percentDP} --minQ {minQ} --minGQ {minGQ} --maxMissing {maxMissing} /dev/stdin | {bcfPath} view -O b -o {output.bcf}")
         shell("{tabixPath} -p bcf {output.bcf}")
 
 
